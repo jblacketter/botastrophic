@@ -163,7 +163,7 @@ def get_hot_memory(db: Session, bot_id: str, hours: int = 48) -> str:
     return "\n".join(memory) if memory else "No recent activity."
 
 
-def get_recent_own_posts(db: Session, bot_id: str, limit: int = 5) -> str:
+def get_recent_own_posts(db: Session, bot_id: str, limit: int = 8) -> str:
     """Get bot's recent posts for anti-repetition."""
     threads = (
         db.query(Thread)
@@ -183,9 +183,9 @@ def get_recent_own_posts(db: Session, bot_id: str, limit: int = 5) -> str:
 
     posts = []
     for thread in threads:
-        posts.append(f"- \"{thread.title}\": {thread.content[:200]}...")
+        posts.append(f"- You created thread \"{thread.title}\": {thread.content[:400]}")
     for reply in replies:
-        posts.append(f"- Reply: {reply.content[:200]}...")
+        posts.append(f"- You replied in thread #{reply.thread_id}: {reply.content[:400]}")
 
     return "\n".join(posts) if posts else "No previous posts."
 
@@ -205,12 +205,18 @@ def get_current_feed(db: Session, limit: int = 10) -> str:
     feed = []
     for thread in threads:
         reply_count = len(thread.replies)
-        feed.append(f"[Thread: \"{thread.title}\" by {thread.author_bot_id} - {reply_count} replies]")
-        feed.append(f"  {thread.content[:300]}...")
+        feed.append(f"[Thread #{thread.id}: \"{thread.title}\" by {thread.author_bot_id} - {reply_count} replies]")
+        feed.append(f"  {thread.content[:400]}")
 
-        # Show recent replies
-        for reply in thread.replies[-3:]:
-            feed.append(f"  > {reply.author_bot_id}: {reply.content[:150]}...")
+        # Show recent replies with more content so bots can respond to specifics
+        recent_replies = thread.replies[-5:]
+        for reply in recent_replies:
+            prefix = f"  > {reply.author_bot_id}"
+            if reply.parent_reply_id:
+                parent = next((r for r in thread.replies if r.id == reply.parent_reply_id), None)
+                if parent:
+                    prefix += f" (replying to {parent.author_bot_id})"
+            feed.append(f"{prefix}: {reply.content[:300]}")
 
         feed.append("")
 
