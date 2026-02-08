@@ -1,0 +1,42 @@
+# Botastrophic Docker Compose - Production
+# Dashboard served via nginx, API behind proxy, single worker
+
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+      - ./seeds:/app/seeds
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-anthropic}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - DATABASE_URL=sqlite:///./data/botastrophic.db
+      - HEARTBEAT_INTERVAL=${HEARTBEAT_INTERVAL:-3600}
+      - LOG_LEVEL=WARNING
+    restart: always
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile.prod
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    restart: always
+
+  ollama:
+    image: ollama/ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: always
+    profiles:
+      - ollama
+
+volumes:
+  ollama_data:
